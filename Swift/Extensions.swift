@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 
 public extension NSPredicate {
     
@@ -205,30 +206,6 @@ extension NibInstantiatable where Self: UIView {
 extension Collection {
     subscript(safe index: Index) -> _Element? {
         return index >= startIndex && index < endIndex ? self[index] : nil
-    }
-}
-
-extension UITextField {
-    
-    func setToolBar(_ title: String, handler: @escaping ((UIBarButtonItem) -> Void)) {
-        // ツールバー
-        let pickerToolBar = UIToolbar.init(frame: CGRect.init(x: 0, y: DeviceSize.screenHeight() / 6, width: DeviceSize.screenWidth(), height: 44))
-        pickerToolBar.layer.position = CGPoint(x: DeviceSize.screenWidth().toCGFloat() / 2.0, y: DeviceSize.screenHeight().toCGFloat() - 20.0)
-        pickerToolBar.barStyle = .default
-        pickerToolBar.isTranslucent = true
-        pickerToolBar.tintColor = UIColor.xFontColor
-        pickerToolBar.backgroundColor = UIColor.xWheat
-        
-        // ツールバーにボタンの設定
-        // 右寄せのためのスペース設定
-        let spaceBarBtn = UIBarButtonItem.init(barButtonSystemItem: .flexibleSpace, target: self, action: nil)
-        
-        // 完了ボタンを設定
-        let toolBarBtn = UIBarButtonItem.init(title: title, style: .done, handler: handler)
-        
-        // ツールバーにボタンを表示
-        pickerToolBar.items = [spaceBarBtn, toolBarBtn]
-        self.inputAccessoryView = pickerToolBar
     }
 }
 
