@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import UIKit
+import AdSupport
 
 public extension NSPredicate {
     
@@ -131,6 +131,20 @@ extension UITableView {
     func dequeueReusableCell<T: UITableViewCell>(with type: T.Type, for indexPath: IndexPath) -> T {
         return self.dequeueReusableCell(withIdentifier: type.className, for: indexPath) as! T
     }
+    
+    func registerHeaderFooter<T: UIView>(cellType: T.Type) {
+        let className = cellType.className
+        let nib = UINib(nibName: className, bundle: nil)
+        register(nib, forHeaderFooterViewReuseIdentifier: className)
+    }
+    
+    func registerHeaderFooter<T: UIView>(cellTypes: [T.Type]) {
+        cellTypes.forEach { registerHeaderFooter(cellType: $0) }
+    }
+    
+    func dequeueReusableHeaderFooterView<T: UIView>(with type: T.Type) -> T {
+        return self.dequeueReusableHeaderFooterView(withIdentifier: type.className) as! T
+    }
 }
 
 extension UICollectionView {
@@ -204,8 +218,75 @@ extension NibInstantiatable where Self: UIView {
 }
 
 extension Collection {
-    subscript(safe index: Index) -> _Element? {
+    subscript(safe index: Index) -> Element? {
         return index >= startIndex && index < endIndex ? self[index] : nil
+    }
+}
+
+extension UIView {
+    
+    /// 可変長ラベルのフィッティング
+    @discardableResult
+    internal func sizeFitting() -> Self {
+        // 重要：xibと実機のwidthが違うと、systemLayoutSizeFittingが正しく計測されないため事前にwidthを合わせる。
+        self.frame = CGRect.init(x: 0, y: 0, width: UIScreen.main.bounds.width, height: self.frame.height)
+        
+        self.setNeedsLayout()
+        self.layoutIfNeeded()
+        let size = self.systemLayoutSizeFitting(UILayoutFittingCompressedSize)
+        self.frame = CGRect.init(x: 0, y: 0, width: size.width, height: size.height)
+        return self
+    }
+}
+
+extension UIScrollView {
+    
+    public convenience init(frame: CGRect, subviews: [UIView]) {
+        self.init(frame: frame)
+        
+        // コンテンツサイズの高さ計算
+        self.contentSize = CGSize.init(width: frame.width, height: subviews.map { $0.frame.height }.reduce(0, +))
+        
+        // ビュー連結
+        var heightSummary: CGFloat = 0.0
+        for subview in subviews {
+            subview.frame = CGRect.init(x: 0.0, y: heightSummary, width: frame.width, height: subview.frame.height)
+            heightSummary += subview.frame.height
+            self.addSubview(subview)
+        }
+    }
+}
+
+/// http://blogios.stack3.net/archives/2468
+class ModifiableScrollView: UIScrollView {
+    
+    var tagViews: [UIView] = []
+    
+    func resetContentSize() {
+        self.contentSize = CGSize.init(width: frame.width, height: self.tagViews.map { $0.frame.height }.reduce(0, +))
+    }
+    
+    func addTagView(tagView: UIView) {
+        self.addSubview(tagView)
+        self.tagViews.append(tagView)
+        self.resetContentSize()
+    }
+    
+    func addTagViews(tagViews: [UIView]) {
+        for tagView in tagViews {
+            self.addSubview(tagView)
+            self.tagViews.append(tagView)
+        }
+        self.resetContentSize()
+    }
+    
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        var heightSummary: CGFloat = 0.0
+        for tagView in tagViews {
+            tagView.frame = CGRect.init(x: 0.0, y: heightSummary, width: frame.width, height: tagView.frame.height)
+            heightSummary += tagView.frame.height
+        }
     }
 }
 
@@ -287,3 +368,221 @@ extension UIView {
         }
     }
 }
+
+extension String {
+    
+    func toInt() -> Int? {
+        return Int(self)
+    }
+    
+    func toDate(_ format: String) -> Date? {
+        let dateFormatter = DateFormatter.init()
+        dateFormatter.locale = Locale.init(identifier: "ja_JP")
+        dateFormatter.dateFormat = format
+        return dateFormatter.date(from: self)
+    }
+}
+
+extension Date {
+    
+    static func fromStringPOSIX(_ dateString: String) -> Date? {
+        let dateFormatter = DateFormatter.init()
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.timeZone = TimeZone.init(secondsFromGMT: -1 * 60 * 60 * 9)
+        dateFormatter.calendar = Calendar.current
+        dateFormatter.dateFormat = "yyyy'-'MM'-'dd'T'HH':'mm':'ss'.000Z'"
+        return dateFormatter.date(from: dateString)
+    }
+    
+    func toStringPOSIX() -> String {
+        let dateFormatter = DateFormatter.init()
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.timeZone = TimeZone.init(secondsFromGMT: 1 * 60 * 60 * 9)
+        dateFormatter.calendar = Calendar.current
+        dateFormatter.dateFormat = "yyyy'-'MM'-'dd'T'HH':'mm':'ss'.000Z'"
+        return dateFormatter.string(from: self)
+    }
+    
+    func toString(_ format: String) -> String {
+        let dateFormatter = DateFormatter.init()
+        dateFormatter.locale = Locale.init(identifier: "ja_JP")
+        dateFormatter.dateFormat = format
+        return dateFormatter.string(from: self)
+    }
+    
+    func addYear(_ year: Int) -> Date {
+        let calendar = Calendar(identifier: .gregorian)
+        let comps = DateComponents(year: year)
+        return calendar.date(byAdding: comps, to: self)!
+    }
+    
+    func addMonth(_ month: Int) -> Date {
+        let calendar = Calendar(identifier: .gregorian)
+        let comps = DateComponents(month: month)
+        return calendar.date(byAdding: comps, to: self)!
+    }
+    
+    func minusMonth(_ month: Int) -> Date {
+        let calendar = Calendar(identifier: .gregorian)
+        let comps = DateComponents(month: -1 * month)
+        return calendar.date(byAdding: comps, to: self)!
+    }
+    
+    func addDay(_ day: Int) -> Date {
+        let calendar = Calendar(identifier: .gregorian)
+        let comps = DateComponents(day: day)
+        return calendar.date(byAdding: comps, to: self)!
+    }
+    
+    func minusDay(_ day: Int) -> Date {
+        let calendar = Calendar(identifier: .gregorian)
+        let comps = DateComponents(day: -1 * day)
+        return calendar.date(byAdding: comps, to: self)!
+    }
+    
+    func addSecond(_ second: Int) -> Date {
+        let calendar = Calendar(identifier: .gregorian)
+        let comps = DateComponents(second: 1 * second)
+        return calendar.date(byAdding: comps, to: self)!
+    }
+    
+    func minusSecond(_ second: Int) -> Date {
+        let calendar = Calendar(identifier: .gregorian)
+        let comps = DateComponents(second: -1 * second)
+        return calendar.date(byAdding: comps, to: self)!
+    }
+    
+    func setTime(hour: Int, minute: Int, second: Int) -> Date {
+        let calendar = Calendar(identifier: .gregorian)
+        var comp = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: self)
+        comp.hour = hour
+        comp.minute = minute
+        comp.second = second
+        return calendar.date(from: comp)!
+    }
+    
+    func toComponentsYYYYMMDD() -> (year: Int, month: Int, day: Int) {
+        let calendar = Calendar.init(identifier: .gregorian)
+        let yearOfNow = calendar.component(.year, from: self)
+        let monthOfNow = calendar.component(.month, from: self)
+        let dayOfNow = calendar.component(.day, from: self)
+        return (year: yearOfNow, month: monthOfNow, day: dayOfNow)
+    }
+    
+    func toComponents(_ components: Set<Calendar.Component> = [.year, .month, .day, .hour, .minute, .second]) -> DateComponents {
+        let calendar = Calendar.init(identifier: .gregorian)
+        return calendar.dateComponents(components, from: self)
+    }
+    
+    func atStartOfDay() -> Date {
+        let calendar = Calendar.init(identifier: .gregorian)
+        let c = self.toComponents()
+        return calendar.date(from: DateComponents.init(year: c.year, month: c.month, day: c.day))!
+    }
+}
+
+extension UIColor {
+    convenience init?(hexStr: NSString, alpha: CGFloat = 1.0) {
+        let hex = hexStr.replacingOccurrences(of: "#", with: "")
+        let scanner = Scanner(string: hex as String)
+        var color: UInt32 = 0
+        if scanner.scanHexInt32(&color) {
+            let r = CGFloat((color & 0xFF0000) >> 16) / 255.0
+            let g = CGFloat((color & 0x00FF00) >> 8) / 255.0
+            let b = CGFloat(color & 0x0000FF) / 255.0
+            self.init(red:r, green:g, blue:b, alpha:alpha)
+        } else {
+            print("invalid hex string")
+            return nil;
+        }
+    }
+}
+
+extension UIAlertController {
+    
+    func addAction(title: String, style: UIAlertActionStyle = .default, handler: ((UIAlertAction) -> Void)? = nil) -> Self {
+        let okAction = UIAlertAction(title: title, style: style, handler: handler)
+        addAction(okAction)
+        return self
+    }
+    
+    func addActionWithTextFields(title: String, style: UIAlertActionStyle = .default, handler: ((UIAlertAction, [UITextField]) -> Void)? = nil) -> Self {
+        let okAction = UIAlertAction(title: title, style: style) { [weak self] action in
+            handler?(action, self?.textFields ?? [])
+        }
+        addAction(okAction)
+        return self
+    }
+    
+    func configureForIPad(sourceRect: CGRect, sourceView: UIView? = nil) -> Self {
+        popoverPresentationController?.sourceRect = sourceRect
+        if let sourceView = UIApplication.shared.topViewController?.view {
+            popoverPresentationController?.sourceView = sourceView
+        }
+        return self
+    }
+    
+    func configureForIPad(barButtonItem: UIBarButtonItem) -> Self {
+        popoverPresentationController?.barButtonItem = barButtonItem
+        return self
+    }
+    
+    func addTextField(handler: @escaping (UITextField) -> Void) -> Self {
+        addTextField(configurationHandler: handler)
+        return self
+    }
+    
+    func show() {
+        UIApplication.shared.topViewController?.present(self, animated: true, completion: nil)
+    }
+}
+
+extension UIApplication {
+    var topViewController: UIViewController? {
+        guard var topViewController = UIApplication.shared.keyWindow?.rootViewController else { return nil }
+        
+        while let presentedViewController = topViewController.presentedViewController {
+            topViewController = presentedViewController
+        }
+        return topViewController
+    }
+    
+    var topNavigationController: UINavigationController? {
+        return topViewController as? UINavigationController
+    }
+}
+
+public extension UIImage {
+    func save(_ fileURL: URL) -> Bool {
+        guard let imageData = UIImagePNGRepresentation(self) else { return false }
+        do {
+            try imageData.write(to: fileURL)
+            return true
+        } catch {
+            print("error " + error.localizedDescription)
+            return false
+        }
+    }
+}
+
+extension Array {
+    //public mutating func append(_ newElement: Element)
+    public mutating func appendRange(_ newElements: [Element]) {
+        for e in newElements {
+            self.append(e)
+        }
+    }
+}
+
+public extension UIDevice {
+    
+    func idfa() -> String? {
+        let manager = ASIdentifierManager.shared()
+        if manager.isAdvertisingTrackingEnabled {
+            return manager.advertisingIdentifier.uuidString
+        } else {
+            return nil
+        }
+    }
+}
+
