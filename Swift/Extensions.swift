@@ -566,7 +566,6 @@ public extension UIImage {
 }
 
 extension Array {
-    //public mutating func append(_ newElement: Element)
     public mutating func appendRange(_ newElements: [Element]) {
         for e in newElements {
             self.append(e)
@@ -579,10 +578,9 @@ public extension UIDevice {
     func idfa() -> String? {
         let manager = ASIdentifierManager.shared()
         if manager.isAdvertisingTrackingEnabled {
-            return manager.advertisingIdentifier.uuidString
+            return manager.advertisingIdentifier.uuidString.lowercased()
         } else {
             return nil
         }
     }
 }
-
