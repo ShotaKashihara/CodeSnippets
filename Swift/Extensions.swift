@@ -440,6 +440,30 @@ extension Date {
         return calendar.date(byAdding: comps, to: self)!
     }
     
+    func addHour(_ hour: Int) -> Date {
+        let calendar = Calendar(identifier: .gregorian)
+        let comps = DateComponents(hour: hour)
+        return calendar.date(byAdding: comps, to: self)!
+    }
+    
+    func minusHour(_ hour: Int) -> Date {
+        let calendar = Calendar(identifier: .gregorian)
+        let comps = DateComponents(hour: -1 * hour)
+        return calendar.date(byAdding: comps, to: self)!
+    }
+    
+    func addMinute(_ minute: Int) -> Date {
+        let calendar = Calendar(identifier: .gregorian)
+        let comps = DateComponents(minute: minute)
+        return calendar.date(byAdding: comps, to: self)!
+    }
+    
+    func minusMinute(_ minute: Int) -> Date {
+        let calendar = Calendar(identifier: .gregorian)
+        let comps = DateComponents(hour: -1 * minute)
+        return calendar.date(byAdding: comps, to: self)!
+    }
+    
     func addSecond(_ second: Int) -> Date {
         let calendar = Calendar(identifier: .gregorian)
         let comps = DateComponents(second: 1 * second)
